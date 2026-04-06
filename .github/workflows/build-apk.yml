@@ -1,0 +1,90 @@
+name: Build & Release APK
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Flutter APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: 'stable'
+
+      - name: Create .env file
+        working-directory: ./app
+        run: |
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
+          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+          echo "VERSION_CHECK_URL=${{ secrets.VERSION_CHECK_URL }}" >> .env
+
+      - name: Install dependencies
+        working-directory: ./app
+        run: flutter pub get
+
+      - name: Build APK (release)
+        working-directory: ./app
+        run: flutter build apk --release
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Cash-in v${{ steps.version.outputs.VERSION }}"
+          body: |
+            ## 🌿 Cash-in v${{ steps.version.outputs.VERSION }}
+
+            Unduh APK di bawah dan install di perangkat Android Anda.
+
+            ### Cara Install
+            1. Download file `app-release.apk`
+            2. Aktifkan "Install dari sumber tidak dikenal" di pengaturan Android
+            3. Buka file APK dan install
+
+            > Membutuhkan Android 5.0 (Lollipop) atau lebih baru.
+          files: app/build/app/outputs/flutter-apk/app-release.apk
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update version.json
+        run: |
+          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/app-release.apk"
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          DATE=$(date +%Y-%m-%d)
+          
+          cat > web/version.json << EOF
+          {
+            "version": "${VERSION}",
+            "release_date": "${DATE}",
+            "download_url": "${DOWNLOAD_URL}",
+            "changelog": "Cash-in v${VERSION} — lihat GitHub Releases untuk detail perubahan"
+          }
+          EOF
+
+      - name: Commit updated version.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add web/version.json
+          git commit -m "chore: update version.json to v${{ steps.version.outputs.VERSION }} [skip ci]"
+          git push origin HEAD:main

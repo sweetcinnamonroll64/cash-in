@@ -1,0 +1,28 @@
+# .gitignore untuk Cash-in monorepo
+
+# ── Flutter ──────────────────────────────────────────────
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.pub-cache/
+app/build/
+app/*.iml
+app/android/.gradle/
+app/android/local.properties
+app/android/app/debug.keystore
+
+# ENV (sangat penting! jangan pernah commit ini)
+app/.env
+
+# ── IDE ───────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# ── Netlify ───────────────────────────────────────────────
+.netlify/
+
+# ── Node (jika ada) ───────────────────────────────────────
+node_modules/
